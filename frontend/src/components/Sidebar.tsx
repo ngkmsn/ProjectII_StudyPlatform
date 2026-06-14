@@ -47,26 +47,26 @@ export function Sidebar() {
   return (
     <aside 
       className={cn(
-        "relative flex flex-col border-r border-gray-100 bg-white transition-all duration-300 ease-in-out z-40",
+        "relative flex flex-col border-r border-slate-100 bg-white/75 backdrop-blur-lg transition-all duration-300 ease-in-out z-40 shadow-xl shadow-slate-100/40",
         isCollapsed ? "w-20" : "w-64"
       )}
     >
       {/* Toggle Button */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-10 flex h-6 w-6 items-center justify-center rounded-full border border-gray-100 bg-white shadow-sm hover:bg-gray-50 transition-colors"
+        className="absolute -right-3 top-10 flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md hover:bg-slate-50 hover:scale-115 active:scale-95 transition-all z-50"
       >
-        {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        {isCollapsed ? <ChevronRight size={12} className="text-slate-600" /> : <ChevronLeft size={12} className="text-slate-600" />}
       </button>
 
       {/* Logo */}
-      <div className="flex h-16 items-center px-6 mb-6">
+      <div className="flex h-20 items-center px-6 mb-4">
         <Link href="/" className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white font-black text-xs">
-            AI
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-sm shadow-lg shadow-blue-200 animate-float">
+            LH
           </div>
           {!isCollapsed && (
-            <span className="text-xl font-bold tracking-tight text-blue-600 whitespace-nowrap">
+            <span className="text-xl font-black tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">
               LearnHub
             </span>
           )}
@@ -74,7 +74,7 @@ export function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 space-y-1.5 px-3">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = pathname === item.href;
@@ -83,15 +83,15 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200 group",
+                "flex items-center gap-3 rounded-xl px-4 py-3 transition-all duration-300 group border-l-4",
                 isActive 
-                  ? "bg-blue-50 text-blue-600" 
-                  : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-gradient-to-r from-blue-500/8 to-indigo-500/2 text-blue-600 border-blue-600 font-bold" 
+                  : "text-slate-500 hover:bg-slate-50/70 hover:text-slate-900 border-transparent hover:translate-x-1"
               )}
             >
-              <Icon size={20} className={cn("shrink-0", isActive ? "text-blue-600" : "group-hover:text-gray-900")} />
+              <Icon size={19} className={cn("shrink-0 transition-colors duration-300", isActive ? "text-blue-600" : "text-slate-400 group-hover:text-slate-700")} />
               {!isCollapsed && (
-                <span className="text-sm font-semibold whitespace-nowrap">
+                <span className="text-sm tracking-wide">
                   {item.label}
                 </span>
               )}
@@ -101,15 +101,15 @@ export function Sidebar() {
       </nav>
 
       {/* User & Settings */}
-      <div className="border-t border-gray-50 p-4 space-y-4">
+      <div className="border-t border-slate-100 p-4 space-y-4 bg-slate-50/40">
         {!isCollapsed && user && (
-          <div className="flex items-center gap-3 px-2 py-2">
-            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs">
-              {user.name.charAt(0)}
+          <div className="flex items-center gap-3 px-2 py-2.5 rounded-xl bg-white/60 shadow-sm border border-slate-100">
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-tr from-blue-50 to-indigo-50 flex items-center justify-center text-blue-600 font-black text-sm border border-blue-100">
+              {user.name.charAt(0).toUpperCase()}
             </div>
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold text-gray-900 truncate">{user.name}</p>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              <p className="text-sm font-bold text-slate-800 truncate">{user.name}</p>
+              <p className="text-xs text-slate-400 truncate">{user.email}</p>
             </div>
           </div>
         )}
@@ -117,11 +117,11 @@ export function Sidebar() {
           variant="ghost" 
           onClick={handleLogout}
           className={cn(
-            "w-full justify-start text-gray-500 hover:text-red-600 hover:bg-red-50 font-semibold",
+            "w-full justify-start rounded-xl text-slate-500 hover:text-red-600 hover:bg-red-50/60 font-bold transition-all",
             isCollapsed ? "px-2" : "px-3"
           )}
         >
-          <LogOut size={20} className={cn("shrink-0", !isCollapsed && "mr-3")} />
+          <LogOut size={19} className={cn("shrink-0 text-slate-400 group-hover:text-red-600", !isCollapsed && "mr-3")} />
           {!isCollapsed && "Đăng xuất"}
         </Button>
       </div>
