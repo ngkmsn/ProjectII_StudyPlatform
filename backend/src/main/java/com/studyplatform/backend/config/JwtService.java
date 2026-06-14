@@ -16,7 +16,7 @@ import java.util.function.Function;
 public class JwtService {
 
     private static final String SECRET_KEY = "your-very-secure-and-long-secret-key-for-jwt-generation-here";
-    private static final long EXPIRATION_TIME = 86400000; // 24 hours
+    private static final long EXPIRATION_TIME = 86400000L * 7; // 7 days
 
     private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
 

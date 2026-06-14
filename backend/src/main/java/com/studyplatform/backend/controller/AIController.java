@@ -3,11 +3,16 @@ package com.studyplatform.backend.controller;
 import com.studyplatform.backend.entity.Document;
 import com.studyplatform.backend.entity.Flashcard;
 import com.studyplatform.backend.entity.Question;
+import com.studyplatform.backend.entity.User;
 import com.studyplatform.backend.repository.DocumentRepository;
+import com.studyplatform.backend.repository.UserRepository;
+import com.studyplatform.backend.repository.QuestionRepository;
 import com.studyplatform.backend.service.AIService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,6 +27,12 @@ public class AIController {
 
     @Autowired
     private DocumentRepository documentRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private QuestionRepository questionRepository;
 
     @PostMapping("/generate/{documentId}")
     public ResponseEntity<?> generateQuiz(@PathVariable Long documentId) {
@@ -80,5 +91,25 @@ public class AIController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to generate flashcards: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/quizzes")
+    public ResponseEntity<List<Document>> getUserQuizzes() {
+        User user = getCurrentUser();
+        List<Document> documents = documentRepository.findDocumentsWithQuizByUser(user);
+        return ResponseEntity.ok(documents);
+    }
+
+    @GetMapping("/quiz/{documentId}")
+    public ResponseEntity<?> getExistingQuiz(@PathVariable Long documentId) {
+        List<Question> questions = questionRepository.findByDocumentId(documentId);
+        return ResponseEntity.ok(questions);
+    }
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

@@ -13,7 +13,8 @@ import {
   ChevronRight,
   LogOut,
   Sparkles,
-  FolderOpen
+  FolderOpen,
+  Trophy
 } from "lucide-react";
 import { Button } from "./ui/Button";
 
@@ -33,6 +34,7 @@ export function Sidebar() {
   const navItems = [
     { label: "Trang chủ", href: "/", icon: LayoutDashboard },
     { label: "Tài liệu của tôi", href: "/materials", icon: FolderOpen },
+    { label: "Quiz của tôi", href: "/quiz", icon: Trophy },
     { label: "Cộng đồng", href: "/community", icon: Users },
   ];
 

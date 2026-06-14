@@ -54,6 +54,7 @@ export default function StudySetPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
   const [showResults, setShowResults] = useState(false);
+  const [hasExistingQuiz, setHasExistingQuiz] = useState(false);
   
   // Flashcard states
   const [flashcards, setFlashcards] = useState<Flashcard[]>([]);
@@ -63,7 +64,10 @@ export default function StudySetPage() {
   const [activeMode, setActiveMode] = useState<"options" | "quiz" | "flashcards">("options");
 
   useEffect(() => {
-    fetchDocDetail();
+    if (id) {
+      fetchDocDetail();
+      checkExistingQuizAndMode();
+    }
   }, [id]);
 
   const fetchDocDetail = async () => {
@@ -83,6 +87,35 @@ export default function StudySetPage() {
     }
   };
 
+  const checkExistingQuizAndMode = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const quizRes = await axios.get(`http://localhost:8080/api/ai/quiz/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (quizRes.data && quizRes.data.length > 0) {
+        setQuestions(quizRes.data);
+        setHasExistingQuiz(true);
+        
+        // If mode query param is "quiz", enter quiz mode directly
+        const mode = new URLSearchParams(window.location.search).get("mode");
+        if (mode === "quiz") {
+          setActiveMode("quiz");
+        }
+      }
+    } catch (error) {
+      console.error("Error checking existing quiz:", error);
+    }
+  };
+
+  const handleStartQuiz = () => {
+    if (hasExistingQuiz) {
+      setActiveMode("quiz");
+    } else {
+      handleGenerateQuiz();
+    }
+  };
+
   const handleGenerateQuiz = async () => {
     setGenerating(true);
     setActiveMode("quiz");
@@ -92,6 +125,7 @@ export default function StudySetPage() {
         headers: { Authorization: `Bearer ${token}` }
       });
       setQuestions(response.data);
+      setHasExistingQuiz(true);
     } catch (error) {
       alert("Không thể tạo câu hỏi. Vui lòng thử lại.");
       setActiveMode("options");
@@ -168,7 +202,7 @@ export default function StudySetPage() {
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
             className="grid md:grid-cols-2 gap-6"
           >
-            <Card className="group hover:border-purple-400 hover:shadow-xl hover:shadow-purple-100 transition-all cursor-pointer overflow-hidden border-2 border-transparent bg-white" onClick={handleGenerateQuiz}>
+            <Card className="group hover:border-purple-400 hover:shadow-xl hover:shadow-purple-100 transition-all cursor-pointer overflow-hidden border-2 border-transparent bg-white" onClick={handleStartQuiz}>
               <CardContent className="p-8">
                 <div className="flex flex-col items-center text-center space-y-4">
                   <div className="h-20 w-20 bg-purple-50 text-purple-600 rounded-3xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
@@ -179,7 +213,7 @@ export default function StudySetPage() {
                     <p className="text-gray-500 font-medium">Tạo bộ câu hỏi trắc nghiệm thông minh để kiểm tra kiến thức của bạn ngay lập tức.</p>
                   </div>
                   <Button variant="secondary" className="w-full h-12 rounded-xl font-bold mt-4 shadow-lg shadow-purple-100">
-                    Bắt đầu ôn tập
+                    {hasExistingQuiz ? "Xem lại / Làm lại Quiz" : "Bắt đầu ôn tập"}
                   </Button>
                 </div>
               </CardContent>

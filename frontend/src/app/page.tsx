@@ -11,7 +11,8 @@ import {
   Sparkles, 
   ArrowRight,
   FileText,
-  LayoutGrid
+  LayoutGrid,
+  Trophy
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
@@ -37,10 +38,16 @@ export default function Home() {
       const response = await axios.get("http://localhost:8080/api/files", {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Lấy 3 tài liệu gần nhất
       setRecentDocs(response.data.slice(0, 3));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching docs:", error);
+      // Token hết hạn hoặc không hợp lệ → đăng xuất
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/auth/login");
+        return;
+      }
     } finally {
       setLoading(false);
     }
@@ -58,9 +65,15 @@ export default function Home() {
       const response = await axios.post("http://localhost:8080/api/files/upload", formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      // Chuyển hướng sang trang Study Set của tài liệu vừa upload
       router.push(`/studyset/${response.data.id}`);
-    } catch (error) {
+    } catch (error: any) {
+      // Token hết hạn → xóa và chuyển về trang login
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/auth/login");
+        return;
+      }
       alert("Tải lên thất bại. Vui lòng thử lại.");
     } finally {
       setUploading(false);
@@ -76,8 +89,8 @@ export default function Home() {
       </div>
 
       {/* Quick Actions */}
-      <section className="grid md:grid-cols-3 gap-6 mb-12">
-        <Card className="relative overflow-hidden group border-none bg-blue-600 text-white shadow-xl shadow-blue-100">
+      <section className="grid md:grid-cols-2 gap-6 mb-12">
+        <Card className="relative overflow-hidden group border-none bg-blue-600 text-white shadow-xl shadow-blue-100 cursor-pointer">
           <CardContent className="p-6">
             <div className="relative z-10 space-y-4">
               <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
@@ -104,30 +117,26 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card className="border-dashed border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 transition-all cursor-pointer group">
-          <CardContent className="p-6 flex flex-col items-center justify-center h-full text-center space-y-3">
-            <div className="h-12 w-12 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 group-hover:text-blue-500 transition-colors">
-              <Plus size={24} />
-            </div>
-            <div>
-              <h3 className="font-bold text-gray-900">Tạo Study Set mới</h3>
-              <p className="text-sm text-gray-500">Bắt đầu ôn tập chủ đề mới</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none bg-purple-50 text-purple-900">
-          <CardContent className="p-6 flex flex-col justify-between h-full">
-            <div className="space-y-2">
-              <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center text-purple-600">
-                <Sparkles size={20} />
+        <Card 
+          className="relative overflow-hidden group border-none bg-purple-600 text-white shadow-xl shadow-purple-100 cursor-pointer"
+          onClick={() => router.push("/quiz")}
+        >
+          <CardContent className="p-6">
+            <div className="relative z-10 space-y-4">
+              <div className="h-12 w-12 bg-white/20 rounded-xl flex items-center justify-center">
+                <Trophy size={24} />
               </div>
-              <h3 className="font-bold">Gợi ý từ AI</h3>
-              <p className="text-sm text-purple-700/70">Dựa trên lịch sử học tập của bạn</p>
+              <div>
+                <h3 className="text-xl font-bold">Xem lại quiz đã làm</h3>
+                <p className="text-purple-100 text-sm mt-1">Kiểm tra điểm số và giải thích các bài quiz trước đó</p>
+              </div>
+              <Button variant="outline" className="bg-white text-purple-600 border-none font-bold w-full hover:bg-purple-50">
+                Vào trang Quiz
+              </Button>
             </div>
-            <Button variant="ghost" className="w-full mt-4 text-purple-600 font-bold hover:bg-purple-100">
-              Khám phá ngay
-            </Button>
+            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+              <Trophy size={120} />
+            </div>
           </CardContent>
         </Card>
       </section>

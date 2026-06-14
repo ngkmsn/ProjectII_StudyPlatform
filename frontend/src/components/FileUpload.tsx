@@ -92,6 +92,13 @@ export default function FileUpload() {
       setDocumentId(response.data.id);
     } catch (error: any) {
       console.error("Upload error:", error);
+      // Token hết hạn → xóa và chuyển về trang login
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        router.push("/auth/login");
+        return;
+      }
       setMessage("Tải lên thất bại. Vui lòng thử lại.");
     } finally {
       setUploading(false);
