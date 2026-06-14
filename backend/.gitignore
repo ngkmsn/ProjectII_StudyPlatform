@@ -34,3 +34,6 @@ build/
 ### Operating System ###
 .DS_Store
 Thumbs.db
+
+### Local Configuration ###
+**/src/main/resources/application-local.properties

@@ -15,11 +15,18 @@ public class Flashcard {
     @Column(nullable = false)
     private Long documentId;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String frontText;
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "topic_id")
+    private Topic topic;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String backText;
+    @Column(name = "card_type", nullable = true)
+    private String cardType = "QA"; // Default card type
+
+    @Column(name = "front_text", nullable = false, columnDefinition = "TEXT")
+    private String frontContent;
+
+    @Column(name = "back_text", nullable = false, columnDefinition = "TEXT")
+    private String backContent;
 
     @CreationTimestamp
     @Column(updatable = false)
@@ -27,10 +34,19 @@ public class Flashcard {
 
     public Flashcard() {}
 
-    public Flashcard(Long documentId, String frontText, String backText) {
+    public Flashcard(Long documentId, Topic topic, String cardType, String frontContent, String backContent) {
         this.documentId = documentId;
-        this.frontText = frontText;
-        this.backText = backText;
+        this.topic = topic;
+        this.cardType = cardType;
+        this.frontContent = frontContent;
+        this.backContent = backContent;
+    }
+
+    // Keep compatibility constructors if any
+    public Flashcard(Long documentId, String frontContent, String backContent) {
+        this.documentId = documentId;
+        this.frontContent = frontContent;
+        this.backContent = backContent;
     }
 
     public Long getId() { return id; }
@@ -39,11 +55,23 @@ public class Flashcard {
     public Long getDocumentId() { return documentId; }
     public void setDocumentId(Long documentId) { this.documentId = documentId; }
 
-    public String getFrontText() { return frontText; }
-    public void setFrontText(String frontText) { this.frontText = frontText; }
+    public Topic getTopic() { return topic; }
+    public void setTopic(Topic topic) { this.topic = topic; }
 
-    public String getBackText() { return backText; }
-    public void setBackText(String backText) { this.backText = backText; }
+    public String getCardType() { return cardType; }
+    public void setCardType(String cardType) { this.cardType = cardType; }
+
+    public String getFrontContent() { return frontContent; }
+    public void setFrontContent(String frontContent) { this.frontContent = frontContent; }
+
+    public String getBackContent() { return backContent; }
+    public void setBackContent(String backContent) { this.backContent = backContent; }
+
+    // Compatibility getters/setters
+    public String getFrontText() { return frontContent; }
+    public void setFrontText(String frontText) { this.frontContent = frontText; }
+    public String getBackText() { return backContent; }
+    public void setBackText(String backText) { this.backContent = backText; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }

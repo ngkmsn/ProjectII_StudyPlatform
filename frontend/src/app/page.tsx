@@ -21,6 +21,7 @@ export default function Home() {
   const [recentDocs, setRecentDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [attemptsCount, setAttemptsCount] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -30,7 +31,20 @@ export default function Home() {
       return;
     }
     fetchRecentDocs();
+    fetchAttempts();
   }, []);
+
+  const fetchAttempts = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await axios.get("http://localhost:8080/api/quiz/attempts", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAttemptsCount(response.data.length);
+    } catch (error) {
+      console.error("Error fetching attempts:", error);
+    }
+  };
 
   const fetchRecentDocs = async () => {
     try {
@@ -41,7 +55,6 @@ export default function Home() {
       setRecentDocs(response.data.slice(0, 3));
     } catch (error: any) {
       console.error("Error fetching docs:", error);
-      // Token hết hạn hoặc không hợp lệ → đăng xuất
       if (error.response?.status === 401 || error.response?.status === 403) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -209,7 +222,7 @@ export default function Home() {
               </div>
               <div className="flex justify-between items-center p-3 rounded-2xl bg-slate-50/50 border border-slate-100">
                 <span className="text-sm text-slate-500 font-bold">Quiz hoàn thành</span>
-                <span className="text-2xl font-black text-purple-600">0</span>
+                <span className="text-2xl font-black text-purple-600">{attemptsCount}</span>
               </div>
               <div className="pt-2 border-t border-slate-100">
                 <p className="text-xs text-center text-slate-400 font-medium leading-relaxed">

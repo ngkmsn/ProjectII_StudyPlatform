@@ -5,6 +5,7 @@ import com.studyplatform.backend.entity.User;
 import com.studyplatform.backend.repository.DocumentRepository;
 import com.studyplatform.backend.repository.UserRepository;
 import com.studyplatform.backend.service.FileService;
+import com.studyplatform.backend.service.AIService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -28,11 +29,22 @@ public class FileController {
     @Autowired
     private DocumentRepository documentRepository;
 
+    @Autowired
+    private AIService aiService;
+
     @PostMapping("/upload")
     public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
             User user = getCurrentUser();
             Document document = fileService.uploadFile(file, user);
+            
+            // Generate embeddings and chunk document synchronously for RAG
+            try {
+                aiService.chunkAndEmbedDocument(document);
+            } catch (Exception e) {
+                System.err.println("Embedding generation failed: " + e.getMessage());
+            }
+
             return ResponseEntity.ok(document);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(e.getMessage());

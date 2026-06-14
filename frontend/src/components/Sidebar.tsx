@@ -14,7 +14,9 @@ import {
   LogOut,
   Sparkles,
   FolderOpen,
-  Trophy
+  Trophy,
+  Calendar,
+  BarChart2
 } from "lucide-react";
 import { Button } from "./ui/Button";
 
@@ -35,6 +37,8 @@ export function Sidebar() {
     { label: "Trang chủ", href: "/", icon: LayoutDashboard },
     { label: "Tài liệu của tôi", href: "/materials", icon: FolderOpen },
     { label: "Quiz của tôi", href: "/quiz", icon: Trophy },
+    { label: "Ôn tập hàng ngày", href: "/reviews", icon: Calendar },
+    { label: "Thống kê học tập", href: "/analytics", icon: BarChart2 },
     { label: "Cộng đồng", href: "/community", icon: Users },
   ];
 
