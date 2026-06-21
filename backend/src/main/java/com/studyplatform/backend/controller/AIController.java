@@ -16,6 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -35,7 +36,9 @@ public class AIController {
     private QuestionRepository questionRepository;
 
     @PostMapping("/generate/{documentId}")
-    public ResponseEntity<?> generateQuiz(@PathVariable Long documentId) {
+    public ResponseEntity<?> generateQuiz(
+            @PathVariable Long documentId,
+            @RequestBody(required = false) Map<String, Object> payload) {
         try {
             // 1. Get document from DB
             Optional<Document> documentOpt = documentRepository.findById(documentId);
@@ -51,8 +54,29 @@ public class AIController {
                 return ResponseEntity.badRequest().body("Document content is empty. Cannot generate quiz.");
             }
 
+            // Extract settings with default values
+            String difficulty = "MEDIUM";
+            List<String> questionTypes = List.of("MULTIPLE_CHOICE");
+            Integer numQuestions = 5;
+            String topic = null;
+
+            if (payload != null) {
+                if (payload.containsKey("difficulty")) {
+                    difficulty = payload.get("difficulty").toString();
+                }
+                if (payload.containsKey("questionTypes")) {
+                    questionTypes = (List<String>) payload.get("questionTypes");
+                }
+                if (payload.containsKey("numQuestions")) {
+                    numQuestions = Integer.valueOf(payload.get("numQuestions").toString());
+                }
+                if (payload.containsKey("topic")) {
+                    topic = payload.get("topic").toString();
+                }
+            }
+
             // 3. Call AIService to generate and save questions
-            List<Question> questions = aiService.generateQuestions(documentId, content);
+            List<Question> questions = aiService.generateQuestions(documentId, content, difficulty, questionTypes, numQuestions, topic);
 
             // 4. Return questions
             return ResponseEntity.ok(questions);
@@ -67,7 +91,9 @@ public class AIController {
     }
 
     @PostMapping("/generate-flashcards/{documentId}")
-    public ResponseEntity<?> generateFlashcards(@PathVariable Long documentId) {
+    public ResponseEntity<?> generateFlashcards(
+            @PathVariable Long documentId,
+            @RequestBody(required = false) java.util.Map<String, String> payload) {
         try {
             Optional<Document> documentOpt = documentRepository.findById(documentId);
             if (documentOpt.isEmpty()) {
@@ -81,7 +107,12 @@ public class AIController {
                 return ResponseEntity.badRequest().body("Document content is empty. Cannot generate flashcards.");
             }
 
-            List<Flashcard> flashcards = aiService.generateFlashcards(documentId, content);
+            String topic = null;
+            if (payload != null && payload.containsKey("topic")) {
+                topic = payload.get("topic");
+            }
+
+            List<Flashcard> flashcards = aiService.generateFlashcards(documentId, content, topic);
             return ResponseEntity.ok(flashcards);
 
         } catch (IllegalArgumentException e) {

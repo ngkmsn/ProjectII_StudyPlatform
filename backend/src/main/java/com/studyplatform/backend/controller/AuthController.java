@@ -12,6 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -30,8 +35,17 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
+        if (request.getEmail() == null || !request.getEmail().contains("@")) {
+            return ResponseEntity.badRequest().body("Email không đúng định dạng!");
+        }
+        if (request.getPassword() == null || request.getPassword().length() < 6) {
+            return ResponseEntity.badRequest().body("Mật khẩu phải tối thiểu 6 ký tự!");
+        }
+        if (request.getName() == null || request.getName().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Họ tên không được để trống!");
+        }
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
-            return ResponseEntity.badRequest().body("Email already exists");
+            return ResponseEntity.badRequest().body("Email đã tồn tại trong hệ thống!");
         }
 
         User user = new User();
@@ -56,6 +70,48 @@ public class AuthController {
         
         String token = jwtService.generateToken(user.getEmail());
         return ResponseEntity.ok(new AuthResponse(token, user.getName(), user.getEmail()));
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> payload) {
+        String name = payload.get("name");
+        if (name == null || name.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Họ tên không được để trống!");
+        }
+
+        User user = getCurrentUser();
+        user.setName(name);
+        userRepository.save(user);
+
+        String token = jwtService.generateToken(user.getEmail());
+        return ResponseEntity.ok(new AuthResponse(token, user.getName(), user.getEmail()));
+    }
+
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> payload) {
+        String oldPassword = payload.get("oldPassword");
+        String newPassword = payload.get("newPassword");
+
+        if (newPassword == null || newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body("Mật khẩu mới phải tối thiểu 6 ký tự!");
+        }
+
+        User user = getCurrentUser();
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            return ResponseEntity.badRequest().body("Mật khẩu cũ không chính xác!");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        return ResponseEntity.ok(Map.of("message", "Đổi mật khẩu thành công!"));
+    }
+
+    private User getCurrentUser() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }
 

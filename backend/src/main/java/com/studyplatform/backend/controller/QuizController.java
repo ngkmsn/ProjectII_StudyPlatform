@@ -198,25 +198,47 @@ public class QuizController {
             // 2. Create AttemptDetails
             for (Map.Entry<?, ?> entry : answersMap.entrySet()) {
                 Long questionId = Long.valueOf(entry.getKey().toString());
-                Long selectedAnswerId = Long.valueOf(entry.getValue().toString());
+                String userResponse = entry.getValue().toString();
 
                 Question question = questionRepository.findById(questionId)
                         .orElseThrow(() -> new IllegalArgumentException("Question not found"));
-                Answer selectedAnswer = answerRepository.findById(selectedAnswerId)
-                        .orElseThrow(() -> new IllegalArgumentException("Answer not found"));
 
-                boolean isCorrect = selectedAnswer.isCorrect();
+                boolean isCorrect = false;
+                Answer selectedAnswer = null;
 
-                AttemptDetail detail = new AttemptDetail(attempt, question, selectedAnswer, isCorrect);
-                attemptDetailRepository.save(detail);
+                if ("FILL_IN_BLANK".equalsIgnoreCase(question.getType()) || "SHORT_ANSWER".equalsIgnoreCase(question.getType())) {
+                    List<Answer> answers = question.getAnswers();
+                    if (answers != null && !answers.isEmpty()) {
+                        selectedAnswer = answers.get(0);
+                        if (userResponse != null && selectedAnswer != null) {
+                            String correctText = selectedAnswer.getAnswerText().trim();
+                            String userText = userResponse.trim();
+                            isCorrect = userText.equalsIgnoreCase(correctText);
+                        }
+                    }
+                } else {
+                    try {
+                        Long selectedAnswerId = Long.valueOf(userResponse);
+                        selectedAnswer = answerRepository.findById(selectedAnswerId)
+                                .orElseThrow(() -> new IllegalArgumentException("Answer not found"));
+                        isCorrect = selectedAnswer.isCorrect();
+                    } catch (NumberFormatException e) {
+                        isCorrect = false;
+                    }
+                }
 
-                // Dynamically update topic mastery level based on correct/wrong answers
-                Topic topic = question.getTopic();
-                if (topic != null) {
-                    double delta = isCorrect ? 0.05 : -0.05;
-                    double newMastery = Math.min(1.0, Math.max(0.0, topic.getMasteryLevel() + delta));
-                    topic.setMasteryLevel(newMastery);
-                    topicRepository.save(topic);
+                if (selectedAnswer != null) {
+                    AttemptDetail detail = new AttemptDetail(attempt, question, selectedAnswer, isCorrect);
+                    attemptDetailRepository.save(detail);
+
+                    // Dynamically update topic mastery level based on correct/wrong answers
+                    Topic topic = question.getTopic();
+                    if (topic != null) {
+                        double delta = isCorrect ? 0.05 : -0.05;
+                        double newMastery = Math.min(1.0, Math.max(0.0, topic.getMasteryLevel() + delta));
+                        topic.setMasteryLevel(newMastery);
+                        topicRepository.save(topic);
+                    }
                 }
             }
 

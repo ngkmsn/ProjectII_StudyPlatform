@@ -18,4 +18,15 @@ public interface DocumentChunkRepository extends JpaRepository<DocumentChunk, Lo
     List<DocumentChunk> findSimilarChunks(@Param("documentId") Long documentId, 
                                           @Param("queryEmbedding") String queryEmbedding, 
                                           @Param("limit") int limit);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.transaction.annotation.Transactional
+    @Query(value = "INSERT INTO document_chunks (document_id, chunk_index, content, embedding, page_number, created_at) " +
+                   "VALUES (:documentId, :chunkIndex, :content, cast(:embedding as vector), :pageNumber, CURRENT_TIMESTAMP)", 
+           nativeQuery = true)
+    void insertChunk(@Param("documentId") Long documentId, 
+                     @Param("chunkIndex") Integer chunkIndex, 
+                     @Param("content") String content, 
+                     @Param("embedding") String embedding, 
+                     @Param("pageNumber") Integer pageNumber);
 }

@@ -22,7 +22,7 @@ public class DocumentChunk {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
-    @Column(columnDefinition = "vector(1536)", nullable = false)
+    @Column(columnDefinition = "vector(768)", nullable = false)
     private String embedding; // Represented as string "[0.1, 0.2, ...]" for simple JPA compatibility
 
     @Column(name = "page_number")

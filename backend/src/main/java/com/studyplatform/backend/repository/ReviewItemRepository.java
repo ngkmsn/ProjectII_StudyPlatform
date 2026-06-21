@@ -12,4 +12,5 @@ public interface ReviewItemRepository extends JpaRepository<ReviewItem, Long> {
     List<ReviewItem> findByUserIdAndDueDateBefore(Long userId, LocalDateTime date);
     Optional<ReviewItem> findByUserIdAndFlashcardId(Long userId, Long flashcardId);
     Optional<ReviewItem> findByUserIdAndQuestionId(Long userId, Long questionId);
+    List<ReviewItem> findByUserIdAndFlashcardDocumentId(Long userId, Long documentId);
 }

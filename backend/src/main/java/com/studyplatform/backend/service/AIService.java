@@ -15,6 +15,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.transaction.annotation.Transactional;
+
 @Service
 public class AIService {
 
@@ -35,6 +37,9 @@ public class AIService {
 
     @Autowired
     private DocumentRepository documentRepository;
+
+    @Autowired
+    private AttemptDetailRepository attemptDetailRepository;
 
     @Autowired
     private RestTemplate restTemplate;
@@ -59,15 +64,16 @@ public class AIService {
 
     public List<Double> getEmbedding(String text) {
         try {
-            String embedUrl = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=" + aiApiKey;
+            String embedUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=" + aiApiKey;
             
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             
             Map<String, Object> contentNode = Map.of("parts", List.of(Map.of("text", text)));
             Map<String, Object> body = Map.of(
-                "model", "models/text-embedding-004",
-                "content", contentNode
+                "model", "models/gemini-embedding-001",
+                "content", contentNode,
+                "outputDimensionality", 768
             );
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
@@ -87,7 +93,7 @@ public class AIService {
         } catch (Exception e) {
             System.err.println("Embedding extraction error: " + e.getMessage());
             List<Double> fallback = new ArrayList<>();
-            for (int i = 0; i < 1536; i++) fallback.add(0.0);
+            for (int i = 0; i < 768; i++) fallback.add(0.0);
             return fallback;
         }
     }
@@ -111,8 +117,7 @@ public class AIService {
             List<Double> embedding = getEmbedding(chunkText);
             String embeddingStr = embedding.toString();
 
-            DocumentChunk dbChunk = new DocumentChunk(document, i, chunkText, embeddingStr, 1);
-            documentChunkRepository.save(dbChunk);
+            documentChunkRepository.insertChunk(document.getId(), i, chunkText, embeddingStr, 1);
         }
     }
 
@@ -259,10 +264,28 @@ public class AIService {
     // QUESTIONS & ADAPTIVE QUIZ
     // ==========================================
 
+    @Transactional
+    public void cleanExistingQuiz(Long documentId) {
+        List<Question> questions = questionRepository.findByDocumentId(documentId);
+        if (questions != null && !questions.isEmpty()) {
+            for (Question q : questions) {
+                attemptDetailRepository.deleteByQuestionId(q.getId());
+                questionRepository.delete(q);
+            }
+        }
+    }
+
     public List<Question> generateQuestions(Long documentId, String content) throws Exception {
+        return generateQuestions(documentId, content, "MEDIUM", List.of("MULTIPLE_CHOICE"), 5, null);
+    }
+
+    public List<Question> generateQuestions(Long documentId, String content, String difficulty, List<String> questionTypes, Integer numQuestions, String topic) throws Exception {
         if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("Content cannot be empty");
         }
+
+        // Clean existing quiz
+        cleanExistingQuiz(documentId);
 
         // 1. Ensure topics exist
         List<Topic> docTopics = topicRepository.findByDocumentId(documentId);
@@ -280,17 +303,49 @@ public class AIService {
                 ? content.substring(0, MAX_CONTENT_LENGTH) 
                 : content;
 
+        int finalNumQuestions = numQuestions != null && numQuestions > 0 ? numQuestions : 5;
+        String finalDifficulty = difficulty != null ? difficulty : "MEDIUM";
+        List<String> finalQuestionTypes = (questionTypes != null && !questionTypes.isEmpty()) 
+                ? questionTypes 
+                : List.of("MULTIPLE_CHOICE");
+
+        StringBuilder typesInstructions = new StringBuilder();
+        typesInstructions.append("Bạn phải tạo ra các câu hỏi thuộc các định dạng sau:\n");
+        for (String type : finalQuestionTypes) {
+            if ("MULTIPLE_CHOICE".equals(type)) {
+                typesInstructions.append("- MULTIPLE_CHOICE (Trắc nghiệm 4 lựa chọn A, B, C, D)\n");
+            } else if ("TRUE_FALSE".equals(type)) {
+                typesInstructions.append("- TRUE_FALSE (Đúng / Sai, phần 'options' phải gồm đúng 2 lựa chọn: [\"Đúng\", \"Sai\"])\n");
+            } else if ("FILL_IN_BLANK".equals(type)) {
+                typesInstructions.append("- FILL_IN_BLANK (Điền vào chỗ trống, phần 'options' để trống hoặc null, 'correct_answer' chứa từ cần điền)\n");
+            } else if ("SHORT_ANSWER".equals(type)) {
+                typesInstructions.append("- SHORT_ANSWER (Trả lời ngắn, phần 'options' để trống hoặc null, 'correct_answer' chứa đáp án ngắn gọn)\n");
+            }
+        }
+
+        String topicFocus = "";
+        if (topic != null && !topic.trim().isEmpty()) {
+            topicFocus = String.format("- Hãy tập trung đặc biệt vào chủ đề: \"%s\".\n", topic);
+        }
+
         String prompt = String.format(
             "Bạn là một trợ lý học tập AI chuyên nghiệp. Dựa trên nội dung học tập sau đây: \n\n%s\n\n" +
-            "Hãy tạo ra 5 câu hỏi trắc nghiệm bằng TIẾNG VIỆT. Mỗi câu hỏi phải bao gồm: \n" +
+            "Hãy tạo ra đúng %d câu hỏi học tập bằng TIẾNG VIỆT.\n" +
+            "Yêu cầu:\n" +
+            "- Mức độ khó: %s (EASY, MEDIUM, hoặc HARD)\n" +
+            "%s" +
+            "%s" +
+            "Mỗi câu hỏi trong kết quả trả về phải bao gồm các thuộc tính sau:\n" +
             "* question: nội dung câu hỏi\n" +
-            "* options: 4 lựa chọn trả lời\n" +
-            "* correct_answer: đáp án đúng (phải khớp chính xác với một trong các lựa chọn)\n" +
+            "* options: danh sách lựa chọn trả lời (cho MULTIPLE_CHOICE hoặc TRUE_FALSE, để trống hoặc null cho các dạng khác)\n" +
+            "* correct_answer: đáp án đúng (phải khớp chính xác với một trong các lựa chọn nếu có options)\n" +
+            "* type: Định dạng câu hỏi (chọn từ các dạng được yêu cầu ở trên)\n" +
+            "* difficulty: Độ khó của câu hỏi (%s)\n" +
             "* explanation: giải thích chi tiết tại sao đáp án đó đúng\n" +
             "* topic: Tên chủ đề chính xác nhất mà câu hỏi này thuộc về, chọn từ danh sách sau: [%s]\n\n" +
-            "Chỉ trả về duy nhất một đối tượng JSON theo định dạng sau:\n" +
-            "{\"questions\": [{\"question\": \"...\", \"options\": [\"A\", \"B\", \"C\", \"D\"], \"correct_answer\": \"A\", \"explanation\": \"...\", \"topic\": \"...\"}]}",
-            truncatedContent, topicTitlesStr
+            "Chỉ trả về duy nhất một đối tượng JSON theo định dạng sau (không thêm bất kỳ lời giải thích nào ngoài JSON):\n" +
+            "{\"questions\": [{\"question\": \"...\", \"options\": [\"...\", \"...\"], \"correct_answer\": \"...\", \"type\": \"...\", \"difficulty\": \"...\", \"explanation\": \"...\", \"topic\": \"...\"}]}",
+            truncatedContent, finalNumQuestions, finalDifficulty, typesInstructions.toString(), topicFocus, finalDifficulty, topicTitlesStr
         );
 
         HttpHeaders headers = new HttpHeaders();
@@ -438,10 +493,20 @@ public class AIService {
     // FLASHCARDS
     // ==========================================
 
-    public List<Flashcard> generateFlashcards(Long documentId, String content) throws Exception {
+    public List<Flashcard> generateFlashcards(Long documentId, String content, String topicName) throws Exception {
         if (content == null || content.trim().isEmpty()) {
             throw new IllegalArgumentException("Content cannot be empty");
         }
+
+        // 1. Ensure topics exist
+        List<Topic> topics = topicRepository.findByDocumentId(documentId);
+        if (topics.isEmpty()) {
+            topics = generateTopics(documentId, content);
+        }
+
+        String focusText = (topicName != null) 
+            ? String.format("Hãy tập trung chiết xuất các flashcards liên quan sâu sắc đến chủ đề học tập cụ thể: \"%s\".", topicName)
+            : "Hãy tạo flashcards bao quát các khái niệm cốt lõi của toàn bộ tài liệu.";
 
         String truncatedContent = content.length() > MAX_CONTENT_LENGTH 
                 ? content.substring(0, MAX_CONTENT_LENGTH) 
@@ -449,6 +514,7 @@ public class AIService {
 
         String prompt = String.format(
             "Bạn là một trợ lý học tập AI chuyên nghiệp. Dựa trên nội dung sau: \n\n%s\n\n" +
+            "%s\n" +
             "Hãy tạo ra 10 bộ Flashcards bằng TIẾNG VIỆT để giúp người dùng ghi nhớ kiến thức cốt lõi. \n" +
             "Mỗi flashcard gồm:\n" +
             "* front: Câu hỏi, thuật ngữ, hoặc câu có chỗ trống dạng cloze [blank]\n" +
@@ -456,7 +522,7 @@ public class AIService {
             "* card_type: Loại thẻ (QA, TERM_DEFINITION, hoặc CLOZE)\n\n" +
             "Chỉ trả về duy nhất một đối tượng JSON theo định dạng:\n" +
             "{\"flashcards\": [{\"front\": \"...\", \"back\": \"...\", \"card_type\": \"QA\"}]}",
-            truncatedContent
+            truncatedContent, focusText
         );
 
         HttpHeaders headers = new HttpHeaders();
@@ -484,13 +550,25 @@ public class AIService {
             JsonNode flashcardsNode = objectMapper.readTree(jsonContent).path("flashcards");
             List<Flashcard> savedFlashcards = new ArrayList<>();
 
-            List<Topic> topics = topicRepository.findByDocumentId(documentId);
-            Topic defaultTopic = topics.isEmpty() ? null : topics.get(0);
+            Topic targetTopic = null;
+            if (topicName != null) {
+                for (Topic t : topics) {
+                    if (t.getTitle().equalsIgnoreCase(topicName) || 
+                        t.getTitle().toLowerCase().contains(topicName.toLowerCase()) ||
+                        topicName.toLowerCase().contains(t.getTitle().toLowerCase())) {
+                        targetTopic = t;
+                        break;
+                    }
+                }
+            }
+            if (targetTopic == null && !topics.isEmpty()) {
+                targetTopic = topics.get(0);
+            }
 
             for (JsonNode fNode : flashcardsNode) {
                 Flashcard flashcard = new Flashcard(
                     documentId, 
-                    defaultTopic, 
+                    targetTopic, 
                     fNode.path("card_type").asText("QA"),
                     fNode.path("front").asText(), 
                     fNode.path("back").asText()

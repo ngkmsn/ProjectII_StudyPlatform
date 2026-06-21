@@ -41,13 +41,9 @@ public class ReviewController {
         try {
             User user = getCurrentUser();
             
-            // 1. Initialize ReviewItems for flashcards that don't have one yet
-            List<Document> userDocs = documentRepository.findByUser(user);
-            for (Document doc : userDocs) {
-                if (documentId != null && !doc.getId().equals(documentId)) {
-                    continue;
-                }
-                List<Flashcard> flashcards = flashcardRepository.findByDocumentId(doc.getId());
+            if (documentId != null) {
+                // Initialize ReviewItems for flashcards of this specific document
+                List<Flashcard> flashcards = flashcardRepository.findByDocumentId(documentId);
                 for (Flashcard card : flashcards) {
                     if (reviewItemRepository.findByUserIdAndFlashcardId(user.getId(), card.getId()).isEmpty()) {
                         ReviewItem item = new ReviewItem(user, card, null);
@@ -55,25 +51,18 @@ public class ReviewController {
                         reviewItemRepository.save(item);
                     }
                 }
+                
+                // Return all review items for this specific document
+                List<ReviewItem> result = reviewItemRepository.findByUserIdAndFlashcardDocumentId(user.getId(), documentId);
+                return ResponseEntity.ok(result);
+            } else {
+                // Fallback for all due reviews if no documentId is specified
+                List<ReviewItem> allDue = reviewItemRepository.findByUserIdAndDueDateBefore(user.getId(), LocalDateTime.now());
+                return ResponseEntity.ok(allDue);
             }
-
-            // 2. Fetch all due review items
-            List<ReviewItem> allDue = reviewItemRepository.findByUserIdAndDueDateBefore(user.getId(), LocalDateTime.now());
-            List<ReviewItem> result = new ArrayList<>();
-            for (ReviewItem item : allDue) {
-                if (documentId != null) {
-                    if (item.getFlashcard() != null && item.getFlashcard().getDocumentId().equals(documentId)) {
-                        result.add(item);
-                    }
-                } else {
-                    result.add(item);
-                }
-            }
-
-            return ResponseEntity.ok(result);
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.internalServerError().body("Error fetching due reviews: " + e.getMessage());
+            return ResponseEntity.internalServerError().body("Error fetching reviews: " + e.getMessage());
         }
     }
 
@@ -153,6 +142,25 @@ public class ReviewController {
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().body("Error submitting review: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/history/stats")
+    public ResponseEntity<?> getReviewHistoryStats() {
+        try {
+            User user = getCurrentUser();
+            List<Object[]> stats = reviewHistoryRepository.getReviewCountGroupByDay(user.getId());
+            List<java.util.Map<String, Object>> result = new ArrayList<>();
+            for (Object[] row : stats) {
+                java.util.Map<String, Object> map = new java.util.HashMap<>();
+                map.put("date", row[0].toString());
+                map.put("count", row[1]);
+                result.add(map);
+            }
+            return ResponseEntity.ok(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().body("Error fetching review statistics: " + e.getMessage());
         }
     }
 

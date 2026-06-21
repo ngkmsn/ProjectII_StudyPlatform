@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface AttemptDetailRepository extends JpaRepository<AttemptDetail, Long> {
     List<AttemptDetail> findByAttemptId(Long attemptId);
+    void deleteByQuestionId(Long questionId);
 }

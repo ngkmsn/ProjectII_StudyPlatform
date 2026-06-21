@@ -16,7 +16,8 @@ import {
   FolderOpen,
   Trophy,
   Calendar,
-  BarChart2
+  BarChart2,
+  GraduationCap
 } from "lucide-react";
 import { Button } from "./ui/Button";
 
@@ -31,15 +32,16 @@ export function Sidebar() {
     if (storedUser) setUser(JSON.parse(storedUser));
   }, []);
 
-  if (pathname.startsWith("/auth")) return null;
+  if (pathname === "/" || pathname.startsWith("/auth")) return null;
 
   const navItems = [
-    { label: "Trang chủ", href: "/", icon: LayoutDashboard },
+    { label: "Bảng điều khiển", href: "/dashboard", icon: LayoutDashboard },
     { label: "Tài liệu của tôi", href: "/materials", icon: FolderOpen },
     { label: "Quiz của tôi", href: "/quiz", icon: Trophy },
     { label: "Ôn tập hàng ngày", href: "/reviews", icon: Calendar },
     { label: "Thống kê học tập", href: "/analytics", icon: BarChart2 },
     { label: "Cộng đồng", href: "/community", icon: Users },
+    { label: "Hồ sơ cá nhân", href: "/profile", icon: Settings },
   ];
 
   const handleLogout = () => {
@@ -66,8 +68,8 @@ export function Sidebar() {
       {/* Logo */}
       <div className="flex h-20 items-center px-6 mb-4">
         <Link href="/" className="flex items-center gap-3 overflow-hidden">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-black text-sm shadow-lg shadow-blue-200 animate-float">
-            LH
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-200 animate-float">
+            <GraduationCap size={18} />
           </div>
           {!isCollapsed && (
             <span className="text-xl font-black tracking-tight bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent whitespace-nowrap">

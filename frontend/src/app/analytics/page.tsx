@@ -15,7 +15,8 @@ import {
   ArrowRight,
   Target,
   Flame,
-  FileText
+  FileText,
+  CheckCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/Card";
@@ -41,11 +42,17 @@ interface Attempt {
   } | null;
 }
 
+interface ReviewStat {
+  date: string;
+  count: number;
+}
+
 export default function SmartAnalyticsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [weakTopics, setWeakTopics] = useState<WeakTopic[]>([]);
   const [attempts, setAttempts] = useState<Attempt[]>([]);
+  const [reviewStats, setReviewStats] = useState<ReviewStat[]>([]);
   const [streak, setStreak] = useState(0);
 
   useEffect(() => {
@@ -61,18 +68,22 @@ export default function SmartAnalyticsPage() {
         return;
       }
 
-      // Fetch weak topics and attempts in parallel
-      const [weakTopicsRes, attemptsRes] = await Promise.all([
+      // Fetch weak topics, attempts and review stats in parallel
+      const [weakTopicsRes, attemptsRes, statsRes] = await Promise.all([
         axios.get("http://localhost:8080/api/quiz/weak-topics", {
           headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get("http://localhost:8080/api/quiz/attempts", {
+          headers: { Authorization: `Bearer ${token}` }
+        }),
+        axios.get("http://localhost:8080/api/reviews/history/stats", {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 
       setWeakTopics(weakTopicsRes.data);
       setAttempts(attemptsRes.data);
+      setReviewStats(statsRes.data);
 
       // Calculate streak based on attempts
       calculateStreak(attemptsRes.data);
@@ -89,11 +100,9 @@ export default function SmartAnalyticsPage() {
       return;
     }
 
-    // Extract unique dates of attempts
     const dates = attemptsList.map(a => new Date(a.createdAt).toDateString());
     const uniqueDates = Array.from(new Set(dates)).map(d => new Date(d));
 
-    // Sort descending
     uniqueDates.sort((a, b) => b.getTime() - a.getTime());
 
     const today = new Date();
@@ -104,7 +113,6 @@ export default function SmartAnalyticsPage() {
     const latestAttemptDate = uniqueDates[0];
     latestAttemptDate.setHours(0, 0, 0, 0);
 
-    // If the latest attempt is not today or yesterday, streak is broken
     if (latestAttemptDate.getTime() !== today.getTime() && latestAttemptDate.getTime() !== yesterday.getTime()) {
       setStreak(0);
       return;
@@ -124,15 +132,43 @@ export default function SmartAnalyticsPage() {
       if (diffDays === 1) {
         currentStreak++;
       } else if (diffDays > 1) {
-        break; // Streak broken
+        break;
       }
     }
     setStreak(currentStreak);
   };
 
+  const generateLast7Days = () => {
+    const dates = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      d.setHours(0, 0, 0, 0);
+      dates.push(d);
+    }
+    return dates;
+  };
+
+  const getDayName = (date: Date) => {
+    const days = ["CN", "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7"];
+    return days[date.getDay()];
+  };
+
+  const formatDateStr = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const getReviewCountForDate = (dateStr: string) => {
+    const stat = reviewStats.find(s => s.date === dateStr);
+    return stat ? Number(stat.count) : 0;
+  };
+
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
+      <div className="flex h-screen items-center justify-center bg-transparent">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="animate-spin text-blue-600" size={32} />
           <span className="text-sm text-slate-500 font-bold">Đang tổng hợp dữ liệu học tập...</span>
@@ -141,7 +177,6 @@ export default function SmartAnalyticsPage() {
     );
   }
 
-  // Summary Metrics
   const totalAttempts = attempts.length;
   const averageScore = totalAttempts > 0 
     ? Math.round(attempts.reduce((sum, a) => sum + a.score, 0) / totalAttempts) 
@@ -192,7 +227,7 @@ export default function SmartAnalyticsPage() {
         {/* Total Quizzes */}
         <Card className="border-none shadow-sm bg-white overflow-hidden rounded-2xl">
           <CardContent className="p-6 flex items-center gap-4">
-            <div className="h-12 w-12 bg-purple-50 text-purple-500 rounded-xl flex items-center justify-center border border-purple-100">
+            <div className="h-12 w-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center border border-purple-100">
               <Trophy size={24} />
             </div>
             <div className="space-y-0.5">
@@ -215,6 +250,100 @@ export default function SmartAnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Past 7 Days Activity Card */}
+      <Card className="border-none shadow-sm bg-white rounded-2xl overflow-hidden ring-1 ring-slate-100">
+        <CardHeader className="bg-slate-50/50 border-b border-slate-100 p-4">
+          <CardTitle className="text-lg font-black text-slate-800 flex items-center gap-2">
+            <Calendar className="text-emerald-500" size={20} />
+            Lịch sử ôn tập tuần qua
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Xem số lượng thẻ flashcard đã ôn tập hàng ngày trong 7 ngày gần đây.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="space-y-6">
+            
+            {/* Summary statistics bar */}
+            {(() => {
+              const last7Days = generateLast7Days();
+              const activeDays = last7Days.filter(d => {
+                const dateStr = formatDateStr(d);
+                return getReviewCountForDate(dateStr) > 0;
+              });
+              const activeDaysCount = activeDays.length;
+
+              return (
+                <div className="p-4 bg-emerald-50/50 border border-emerald-100/50 rounded-2xl flex items-center gap-3.5 text-left">
+                  <div className="h-10 w-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center shadow-md shadow-emerald-100 shrink-0">
+                    <Calendar size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 font-semibold">Tần suất học tập</p>
+                    <p className="text-sm font-black text-emerald-800">
+                      Trong 7 ngày qua, bạn đã ôn tập vào <span className="text-emerald-600 underline decoration-2 underline-offset-2">{activeDaysCount}/7 ngày</span>.
+                    </p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Days horizontal row */}
+            <div className="grid grid-cols-2 sm:grid-cols-7 gap-3.5">
+              {generateLast7Days().map((date, idx) => {
+                const dateStr = formatDateStr(date);
+                const count = getReviewCountForDate(dateStr);
+                const hasStudied = count > 0;
+                
+                return (
+                  <div 
+                    key={idx} 
+                    className={cn(
+                      "p-4 rounded-2xl border text-center transition-all duration-300 flex flex-col justify-between items-center min-h-[120px]",
+                      hasStudied 
+                        ? "bg-emerald-50/20 border-emerald-200 shadow-sm shadow-emerald-50/20 hover:scale-102" 
+                        : "bg-slate-50/40 border-slate-100 hover:scale-102"
+                    )}
+                  >
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                        {getDayName(date)}
+                      </p>
+                      <p className="text-[11px] font-bold text-slate-500">
+                        {date.getDate()}/{String(date.getMonth() + 1).padStart(2, "0")}
+                      </p>
+                    </div>
+
+                    <div className="my-2.5">
+                      {hasStudied ? (
+                        <div className="h-9 w-9 bg-emerald-500 text-white rounded-full flex items-center justify-center shadow-md shadow-emerald-100">
+                          <CheckCircle className="h-5 w-5" />
+                        </div>
+                      ) : (
+                        <div className="h-9 w-9 bg-slate-100 text-slate-300 rounded-full flex items-center justify-center border border-slate-200/50">
+                          <div className="h-1.5 w-1.5 rounded-full bg-slate-400" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className={cn(
+                        "text-[10px] font-black",
+                        hasStudied ? "text-emerald-600" : "text-slate-400"
+                      )}>
+                        {hasStudied ? `${count} thẻ` : "0 thẻ"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+          </div>
+        </CardContent>
+      </Card>
+
 
       {/* Main grids: Weak topics left, History right */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">

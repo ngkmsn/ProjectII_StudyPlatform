@@ -89,11 +89,12 @@ export default function StudySetPage() {
   // AI Quiz states
   const [generating, setGenerating] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | string>>({});
   const [showResults, setShowResults] = useState(false);
   const [hasExistingQuiz, setHasExistingQuiz] = useState(false);
   const [difficulty, setDifficulty] = useState<"EASY" | "MEDIUM" | "HARD">("MEDIUM");
-  const [isAdaptive, setIsAdaptive] = useState(false);
+  const [selectedQuestionTypes, setSelectedQuestionTypes] = useState<string[]>(["MULTIPLE_CHOICE"]);
+  const [numQuestions, setNumQuestions] = useState<number>(5);
   const [selectedTopicForQuiz, setSelectedTopicForQuiz] = useState<string | null>(null);
   
   // Flashcard states
@@ -109,6 +110,8 @@ export default function StudySetPage() {
   const [activeCitation, setActiveCitation] = useState<any | null>(null);
 
   const [activeMode, setActiveMode] = useState<"options" | "quiz" | "flashcards">("options");
+  const [showPracticeModal, setShowPracticeModal] = useState(false);
+  const [practiceTopicTitle, setPracticeTopicTitle] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -190,7 +193,7 @@ export default function StudySetPage() {
 
   const handleStartQuiz = () => {
     setSelectedTopicForQuiz(null);
-    if (hasExistingQuiz && !isAdaptive) {
+    if (hasExistingQuiz) {
       setActiveMode("quiz");
     } else {
       handleGenerateQuiz();
@@ -204,20 +207,14 @@ export default function StudySetPage() {
     setSelectedAnswers({});
     try {
       const token = localStorage.getItem("token");
-      let response;
-      if (isAdaptive || selectedTopicForQuiz) {
-        response = await axios.post(`http://localhost:8080/api/quiz/adaptive`, {
-          documentId: id,
-          difficulty: difficulty,
-          topic: selectedTopicForQuiz || undefined
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } else {
-        response = await axios.post(`http://localhost:8080/api/ai/generate/${id}`, {}, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
+      const response = await axios.post(`http://localhost:8080/api/ai/generate/${id}`, {
+        difficulty: difficulty,
+        questionTypes: selectedQuestionTypes,
+        numQuestions: numQuestions,
+        topic: selectedTopicForQuiz || undefined
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       setQuestions(response.data);
       setHasExistingQuiz(true);
     } catch (error) {
@@ -228,12 +225,13 @@ export default function StudySetPage() {
     }
   };
 
-  const handleGenerateFlashcards = async () => {
+  const handleGenerateFlashcards = async (topicName?: string) => {
     setGenerating(true);
     setActiveMode("flashcards");
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.post(`http://localhost:8080/api/ai/generate-flashcards/${id}`, {}, {
+      const payload = topicName ? { topic: topicName } : {};
+      const response = await axios.post(`http://localhost:8080/api/ai/generate-flashcards/${id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFlashcards(response.data);
@@ -247,13 +245,26 @@ export default function StudySetPage() {
     }
   };
 
-  const handleSelectAnswer = (questionId: number, answerId: number) => {
+  const handleSelectAnswer = (questionId: number, answerId: number | string) => {
     if (showResults) return;
     setSelectedAnswers(prev => ({ ...prev, [questionId]: answerId }));
   };
 
+  const isQuestionCorrect = (q: Question) => {
+    const userAnswer = selectedAnswers[q.id];
+    if (userAnswer === undefined || userAnswer === null) return false;
+    
+    if (q.type === "FILL_IN_BLANK" || q.type === "SHORT_ANSWER") {
+      const correctAnswerText = q.answers[0]?.answerText || "";
+      return String(userAnswer).trim().toLowerCase() === correctAnswerText.trim().toLowerCase();
+    } else {
+      const selectedAns = q.answers.find(a => a.id === Number(userAnswer));
+      return selectedAns ? selectedAns.correct : false;
+    }
+  };
+
   const handleSubmitQuiz = async () => {
-    const correctCount = questions.filter(q => q.answers.find(a => a.id === selectedAnswers[q.id])?.correct).length;
+    const correctCount = questions.filter(q => isQuestionCorrect(q)).length;
     const finalScore = Math.round((correctCount / questions.length) * 100);
     
     try {
@@ -322,7 +333,7 @@ export default function StudySetPage() {
     }
   };
 
-  const score = questions.filter(q => q.answers.find(a => a.id === selectedAnswers[q.id])?.correct).length;
+  const score = questions.filter(q => isQuestionCorrect(q)).length;
 
   const parentTopics = topics.filter(t => !t.parent);
   const getSubtopics = (parentId: number) => topics.filter(t => t.parent && t.parent.id === parentId);
@@ -333,8 +344,12 @@ export default function StudySetPage() {
 
   const handlePracticeTopic = (topicTitle: string) => {
     setSelectedTopicForQuiz(topicTitle);
-    setIsAdaptive(true);
     handleGenerateQuiz();
+  };
+
+  const handlePracticeTopicClick = (topicTitle: string) => {
+    setPracticeTopicTitle(topicTitle);
+    setShowPracticeModal(true);
   };
 
   // Safe formatting for chat answers
@@ -453,10 +468,10 @@ export default function StudySetPage() {
                                   <Button 
                                     size="sm" 
                                     variant="outline" 
-                                    onClick={() => handlePracticeTopic(sub.title)}
+                                    onClick={() => handlePracticeTopicClick(sub.title)}
                                     className="h-6 text-[10px] border-indigo-200 text-indigo-600 hover:bg-indigo-50"
                                   >
-                                    Luyện tập (Adaptive)
+                                    Luyện tập
                                   </Button>
                                 </div>
                               </div>
@@ -498,8 +513,9 @@ export default function StudySetPage() {
                           </p>
                         </div>
 
-                        {/* Difficulty and Adaptive Config */}
-                        <div className="w-full border-t border-slate-100 pt-4 space-y-3 text-left">
+                        {/* Difficulty, Question Types and Question Count Config */}
+                        <div className="w-full border-t border-slate-100 pt-4 space-y-4 text-left">
+                          {/* Mức độ khó */}
                           <div className="flex items-center justify-between">
                             <span className="text-xs font-bold text-slate-500">Mức độ khó:</span>
                             <div className="flex gap-1.5">
@@ -520,32 +536,98 @@ export default function StudySetPage() {
                             </div>
                           </div>
 
-                          <div 
-                            className="flex items-center gap-2 cursor-pointer"
-                            onClick={() => setIsAdaptive(!isAdaptive)}
-                          >
-                            <input 
-                              type="checkbox" 
-                              checked={isAdaptive} 
-                              onChange={() => {}} // Controlled by label div click
-                              className="accent-purple-600 rounded"
-                            />
-                            <div className="space-y-0.5">
-                              <span className="text-xs font-bold text-slate-700 flex items-center gap-1">
-                                Chế độ Thích ứng (Adaptive) <Sparkles size={12} className="text-amber-500 animate-pulse" />
-                              </span>
-                              <p className="text-[10px] text-slate-400">Tự động tập trung vào các câu hỏi và chủ đề bạn còn yếu.</p>
+                          {/* Dạng câu hỏi */}
+                          <div className="space-y-2">
+                            <span className="text-xs font-bold text-slate-500 block">Dạng câu hỏi:</span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {[
+                                { value: "MULTIPLE_CHOICE", label: "Trắc nghiệm" },
+                                { value: "TRUE_FALSE", label: "Đúng/Sai" },
+                                { value: "FILL_IN_BLANK", label: "Điền từ" },
+                                { value: "SHORT_ANSWER", label: "Trả lời ngắn" }
+                              ].map(type => {
+                                const isSelected = selectedQuestionTypes.includes(type.value);
+                                return (
+                                  <button
+                                    key={type.value}
+                                    onClick={() => {
+                                      if (isSelected) {
+                                        if (selectedQuestionTypes.length > 1) {
+                                          setSelectedQuestionTypes(selectedQuestionTypes.filter(t => t !== type.value));
+                                        }
+                                      } else {
+                                        setSelectedQuestionTypes([...selectedQuestionTypes, type.value]);
+                                      }
+                                    }}
+                                    className={cn(
+                                      "px-2.5 py-1 rounded text-[10px] font-bold border transition-colors",
+                                      isSelected 
+                                        ? "bg-purple-600 border-purple-600 text-white" 
+                                        : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                                    )}
+                                  >
+                                    {type.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Số lượng câu hỏi */}
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-slate-500">Số lượng câu hỏi:</span>
+                            <div className="flex gap-1.5">
+                              {([5, 10, 15, 20] as const).map(n => (
+                                <button
+                                  key={n}
+                                  onClick={() => setNumQuestions(n)}
+                                  className={cn(
+                                    "px-2.5 py-1 rounded text-[10px] font-black border transition-colors",
+                                    numQuestions === n 
+                                      ? "bg-purple-600 border-purple-600 text-white" 
+                                      : "border-slate-200 text-slate-500 hover:bg-slate-50"
+                                  )}
+                                >
+                                  {n} câu
+                                </button>
+                              ))}
                             </div>
                           </div>
                         </div>
 
-                        <Button 
-                          variant="secondary" 
-                          onClick={handleStartQuiz}
-                          className="w-full h-11 rounded-xl font-bold mt-2 shadow-sm bg-purple-600 text-white hover:bg-purple-700 border-none"
-                        >
-                          {hasExistingQuiz && !isAdaptive ? "Làm lại bài kiểm tra cũ" : "Bắt đầu bài trắc nghiệm"}
-                        </Button>
+                        {/* Quiz start buttons */}
+                        {hasExistingQuiz ? (
+                          <div className="w-full flex flex-col gap-2 mt-2">
+                            <Button 
+                              variant="secondary" 
+                              onClick={() => {
+                                setSelectedTopicForQuiz(null);
+                                setActiveMode("quiz");
+                              }}
+                              className="w-full h-11 rounded-xl font-bold shadow-sm bg-slate-700 hover:bg-slate-800 text-white border-none"
+                            >
+                              Làm lại bài kiểm tra cũ
+                            </Button>
+                            <Button 
+                              variant="secondary" 
+                              onClick={() => {
+                                setSelectedTopicForQuiz(null);
+                                handleGenerateQuiz();
+                              }}
+                              className="w-full h-11 rounded-xl font-bold shadow-sm bg-purple-600 text-white hover:bg-purple-700 border-none"
+                            >
+                              Tạo bài trắc nghiệm mới
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button 
+                            variant="secondary" 
+                            onClick={handleStartQuiz}
+                            className="w-full h-11 rounded-xl font-bold mt-2 shadow-sm bg-purple-600 text-white hover:bg-purple-700 border-none"
+                          >
+                            Bắt đầu bài trắc nghiệm
+                          </Button>
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -570,7 +652,7 @@ export default function StudySetPage() {
                         </div>
                         <Button 
                           variant="outline" 
-                          onClick={handleGenerateFlashcards}
+                          onClick={() => handleGenerateFlashcards()}
                           className="w-full h-11 rounded-xl font-bold mt-2 border-blue-200 text-blue-600 hover:bg-blue-50/50"
                         >
                           Tạo & Học Flashcards
@@ -636,34 +718,67 @@ export default function StudySetPage() {
                             </div>
                           </CardHeader>
                           <CardContent className="p-4">
-                            <div className="grid md:grid-cols-2 gap-3">
-                              {q.answers.map((a) => {
-                                const isSelected = selectedAnswers[q.id] === a.id;
-                                let stateStyles = "border-slate-100 hover:border-blue-200 hover:bg-blue-50/30";
-                                
-                                if (showResults) {
-                                  if (a.correct) stateStyles = "border-emerald-500 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500";
-                                  else if (isSelected && !a.correct) stateStyles = "border-red-500 bg-red-50 text-red-800 ring-1 ring-red-500";
-                                  else stateStyles = "border-slate-100 opacity-50 grayscale-[0.4]";
-                                } else if (isSelected) {
-                                  stateStyles = "border-blue-600 bg-blue-50/40 text-blue-700 ring-2 ring-blue-100 font-bold";
-                                }
+                            {q.type === "FILL_IN_BLANK" || q.type === "SHORT_ANSWER" ? (
+                              <div className="space-y-3">
+                                <input
+                                  type="text"
+                                  disabled={showResults}
+                                  value={(selectedAnswers[q.id] as string) || ""}
+                                  onChange={(e) => handleSelectAnswer(q.id, e.target.value)}
+                                  placeholder="Nhập câu trả lời của bạn..."
+                                  className={cn(
+                                    "w-full border-2 rounded-xl px-4 py-3 text-xs focus:outline-none transition-all duration-200",
+                                    showResults
+                                      ? isQuestionCorrect(q)
+                                        ? "border-emerald-500 bg-emerald-50 text-emerald-800 focus:ring-emerald-200"
+                                        : "border-red-500 bg-red-50 text-red-800 focus:ring-red-200"
+                                      : "border-slate-100 focus:border-blue-500 focus:ring-1 focus:ring-blue-100"
+                                  )}
+                                />
+                                {showResults && (
+                                  <div className="text-xs space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <p className="font-semibold text-slate-600">
+                                      Đáp án của bạn: <span className={cn(
+                                        isQuestionCorrect(q) ? "text-emerald-600 font-bold" : "text-red-600 font-bold"
+                                      )}>{(selectedAnswers[q.id] as string) || "(Chưa trả lời)"}</span>
+                                    </p>
+                                    <p className="text-emerald-700 font-bold">
+                                      Đáp án đúng: {q.answers[0]?.answerText}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <div className="grid md:grid-cols-2 gap-3">
+                                {q.answers.map((a) => {
+                                  const isSelected = selectedAnswers[q.id] === a.id;
+                                  let stateStyles = "border-slate-100 hover:border-blue-200 hover:bg-blue-50/30";
+                                  
+                                  if (showResults) {
+                                    if (a.correct) stateStyles = "border-emerald-500 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-500";
+                                    else if (isSelected && !a.correct) stateStyles = "border-red-500 bg-red-50 text-red-800 ring-1 ring-red-500";
+                                    else stateStyles = "border-slate-100 opacity-50 grayscale-[0.4]";
+                                  } else if (isSelected) {
+                                    stateStyles = "border-blue-600 bg-blue-50/40 text-blue-700 ring-2 ring-blue-100 font-bold";
+                                  }
 
-                                return (
-                                  <button
-                                    key={a.id}
-                                    onClick={() => handleSelectAnswer(q.id, a.id)}
-                                    disabled={showResults}
-                                    className={cn(
-                                      "group flex items-center justify-between p-3.5 rounded-xl border-2 text-left transition-all duration-200 text-xs font-semibold",
-                                      stateStyles
-                                    )}
-                                  >
-                                    <span>{a.answerText}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
+                                  return (
+                                    <button
+                                      key={a.id}
+                                      type="button"
+                                      onClick={() => handleSelectAnswer(q.id, a.id)}
+                                      disabled={showResults}
+                                      className={cn(
+                                        "group flex items-center justify-between p-3.5 rounded-xl border-2 text-left transition-all duration-200 text-xs font-semibold",
+                                        stateStyles
+                                      )}
+                                    >
+                                      <span>{a.answerText}</span>
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
 
                             {showResults && q.explanation && (
                               <div className="mt-4 pt-4 border-t border-slate-100">
@@ -982,6 +1097,89 @@ export default function StudySetPage() {
               </form>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Practice Choice Modal */}
+      <AnimatePresence>
+        {showPracticeModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowPracticeModal(false)}
+              className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
+            />
+            {/* Content */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: "spring", duration: 0.4 }}
+              className="relative w-full max-w-md bg-white border border-slate-100 shadow-2xl rounded-3xl p-6 overflow-hidden z-10 space-y-6"
+            >
+              <button
+                type="button"
+                onClick={() => setShowPracticeModal(false)}
+                className="absolute top-4 right-4 h-8 w-8 text-slate-400 hover:text-slate-600 flex items-center justify-center rounded-lg hover:bg-slate-100"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="text-center space-y-2">
+                <div className="h-12 w-12 bg-gradient-to-tr from-indigo-500 to-purple-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100 mx-auto">
+                  <Sparkles size={22} className="animate-pulse" />
+                </div>
+                <h3 className="text-lg font-black text-slate-800 tracking-tight">Luyện tập chủ đề</h3>
+                <p className="text-xs text-slate-500 font-bold max-w-[280px] mx-auto line-clamp-2">
+                  {practiceTopicTitle}
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (practiceTopicTitle) {
+                      setSelectedTopicForQuiz(practiceTopicTitle);
+                      handleGenerateQuiz();
+                      setShowPracticeModal(false);
+                    }
+                  }}
+                  className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-purple-200 hover:bg-purple-50/20 text-left transition-all group duration-300"
+                >
+                  <div className="h-10 w-10 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <BrainCircuit size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800">Làm Quiz trắc nghiệm</h4>
+                    <p className="text-[10px] text-slate-400">Trắc nghiệm theo chủ đề con và cấu hình đã chọn</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (practiceTopicTitle) {
+                      handleGenerateFlashcards(practiceTopicTitle);
+                      setShowPracticeModal(false);
+                    }
+                  }}
+                  className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-200 hover:bg-blue-50/20 text-left transition-all group duration-300"
+                >
+                  <div className="h-10 w-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Layers size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-slate-800">Học thẻ Flashcards</h4>
+                    <p className="text-[10px] text-slate-400">Ghi nhớ lặp lại ngắt quãng (SM-2) cho chủ đề con</p>
+                  </div>
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
