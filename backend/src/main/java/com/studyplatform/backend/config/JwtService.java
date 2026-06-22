@@ -6,6 +6,8 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
+import org.springframework.beans.factory.annotation.Value;
+
 import java.security.Key;
 import java.util.Date;
 import java.util.HashMap;
@@ -15,10 +17,12 @@ import java.util.function.Function;
 @Component
 public class JwtService {
 
-    private static final String SECRET_KEY = "your-very-secure-and-long-secret-key-for-jwt-generation-here";
     private static final long EXPIRATION_TIME = 86400000L * 7; // 7 days
+    private final Key key;
 
-    private final Key key = Keys.hmacShaKeyFor(SECRET_KEY.getBytes());
+    public JwtService(@Value("${jwt.secret:your-very-secure-and-long-secret-key-for-jwt-generation-here}") String secretKey) {
+        this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
+    }
 
     public String extractUsername(String token) {
         return extractClaim(token, Claims::getSubject);
