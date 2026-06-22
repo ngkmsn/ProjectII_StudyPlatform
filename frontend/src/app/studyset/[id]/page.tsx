@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -125,7 +126,7 @@ export default function StudySetPage() {
   const fetchDocDetail = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:8080/api/files", {
+      const response = await axios.get(`${API_BASE_URL}/api/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const currentDoc = response.data.find((d: any) => d.id.toString() === id);
@@ -143,7 +144,7 @@ export default function StudySetPage() {
     setFetchingTopics(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`http://localhost:8080/api/topics/document/${id}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/topics/document/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTopics(response.data);
@@ -162,7 +163,7 @@ export default function StudySetPage() {
   const checkExistingQuizAndMode = async () => {
     try {
       const token = localStorage.getItem("token");
-      const quizRes = await axios.get(`http://localhost:8080/api/ai/quiz/${id}`, {
+      const quizRes = await axios.get(`${API_BASE_URL}/api/ai/quiz/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (quizRes.data && quizRes.data.length > 0) {
@@ -182,7 +183,7 @@ export default function StudySetPage() {
   const fetchChatHistory = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`http://localhost:8080/api/chat/document/${id}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/chat/document/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setChatMessages(response.data);
@@ -207,7 +208,7 @@ export default function StudySetPage() {
     setSelectedAnswers({});
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.post(`http://localhost:8080/api/ai/generate/${id}`, {
+      const response = await axios.post(`${API_BASE_URL}/api/ai/generate/${id}`, {
         difficulty: difficulty,
         questionTypes: selectedQuestionTypes,
         numQuestions: numQuestions,
@@ -231,7 +232,7 @@ export default function StudySetPage() {
     try {
       const token = localStorage.getItem("token");
       const payload = topicName ? { topic: topicName } : {};
-      const response = await axios.post(`http://localhost:8080/api/ai/generate-flashcards/${id}`, payload, {
+      const response = await axios.post(`${API_BASE_URL}/api/ai/generate-flashcards/${id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setFlashcards(response.data);
@@ -269,7 +270,7 @@ export default function StudySetPage() {
     
     try {
       const token = localStorage.getItem("token");
-      await axios.post("http://localhost:8080/api/quiz/submit", {
+      await axios.post(`${API_BASE_URL}/api/quiz/submit`, {
         documentId: id,
         score: finalScore,
         answers: selectedAnswers
@@ -313,7 +314,7 @@ export default function StudySetPage() {
 
     try {
       const token = localStorage.getItem("token");
-      const res = await axios.post("http://localhost:8080/api/chat/document", {
+      const res = await axios.post(`${API_BASE_URL}/api/chat/document`, {
         documentId: id,
         message: userMsg
       }, {

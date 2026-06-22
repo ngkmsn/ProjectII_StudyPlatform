@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -85,7 +86,7 @@ export default function FileUpload() {
 
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/files/upload", 
+        `${API_BASE_URL}/api/files/upload`, 
         formData,
         getAuthHeaders()
       );
@@ -111,7 +112,7 @@ export default function FileUpload() {
     setGenerating(true);
     try {
       const response = await axios.post(
-        `http://localhost:8080/api/ai/generate/${documentId}`,
+        `${API_BASE_URL}/api/ai/generate/${documentId}`,
         {},
         getAuthHeaders()
       );

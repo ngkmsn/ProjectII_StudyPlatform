@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -31,7 +32,7 @@ export default function CommunityPage() {
   const fetchCommunityDocuments = async () => {
     const token = localStorage.getItem("token");
     try {
-      const response = await axios.get("http://localhost:8080/api/files/community", {
+      const response = await axios.get(`${API_BASE_URL}/api/files/community`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       setDocuments(response.data);

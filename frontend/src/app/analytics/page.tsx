@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
@@ -70,13 +71,13 @@ export default function SmartAnalyticsPage() {
 
       // Fetch weak topics, attempts and review stats in parallel
       const [weakTopicsRes, attemptsRes, statsRes] = await Promise.all([
-        axios.get("http://localhost:8080/api/quiz/weak-topics", {
+        axios.get(`${API_BASE_URL}/api/quiz/weak-topics`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get("http://localhost:8080/api/quiz/attempts", {
+        axios.get(`${API_BASE_URL}/api/quiz/attempts`, {
           headers: { Authorization: `Bearer ${token}` }
         }),
-        axios.get("http://localhost:8080/api/reviews/history/stats", {
+        axios.get(`${API_BASE_URL}/api/reviews/history/stats`, {
           headers: { Authorization: `Bearer ${token}` }
         })
       ]);

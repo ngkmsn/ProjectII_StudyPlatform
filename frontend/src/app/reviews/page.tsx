@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
@@ -70,7 +71,7 @@ export default function DailyReviewsPage() {
         router.push("/auth/login");
         return;
       }
-      const response = await axios.get("http://localhost:8080/api/files", {
+      const response = await axios.get(`${API_BASE_URL}/api/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDocuments(response.data);
@@ -85,7 +86,7 @@ export default function DailyReviewsPage() {
     setLoadingReviews(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get(`http://localhost:8080/api/reviews/today?documentId=${docId}`, {
+      const response = await axios.get(`${API_BASE_URL}/api/reviews/today?documentId=${docId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setReviews(response.data);
@@ -110,7 +111,7 @@ export default function DailyReviewsPage() {
     setGeneratingFlashcards(true);
     try {
       const token = localStorage.getItem("token");
-      await axios.post(`http://localhost:8080/api/ai/generate-flashcards/${selectedDocId}`, {}, {
+      await axios.post(`${API_BASE_URL}/api/ai/generate-flashcards/${selectedDocId}`, {}, {
         headers: { Authorization: `Bearer ${token}` }
       });
       // Reload reviews after generation
@@ -130,7 +131,7 @@ export default function DailyReviewsPage() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.post("http://localhost:8080/api/reviews/submit", {
+      await axios.post(`${API_BASE_URL}/api/reviews/submit`, {
         reviewItemId: item.id,
         qualityScore: score
       }, {

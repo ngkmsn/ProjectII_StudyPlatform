@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { 
@@ -37,7 +38,7 @@ export default function Dashboard() {
   const fetchAttempts = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:8080/api/quiz/attempts", {
+      const response = await axios.get(`${API_BASE_URL}/api/quiz/attempts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setAttemptsCount(response.data.length);
@@ -49,7 +50,7 @@ export default function Dashboard() {
   const fetchRecentDocs = async () => {
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.get("http://localhost:8080/api/files", {
+      const response = await axios.get(`${API_BASE_URL}/api/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRecentDocs(response.data.slice(0, 3));
@@ -75,7 +76,7 @@ export default function Dashboard() {
 
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.post("http://localhost:8080/api/files/upload", formData, {
+      const response = await axios.post(`${API_BASE_URL}/api/files/upload`, formData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       router.push(`/studyset/${response.data.id}`);

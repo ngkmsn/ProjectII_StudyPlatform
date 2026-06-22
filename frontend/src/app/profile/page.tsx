@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import axios from "axios";
+import { API_BASE_URL } from "@/lib/api";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Settings, User, KeyRound, Loader2, CheckCircle, AlertCircle } from "lucide-react";
@@ -51,7 +52,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await axios.put("http://localhost:8080/api/auth/profile", {
+      const response = await axios.put(`${API_BASE_URL}/api/auth/profile`, {
         name: name
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -95,7 +96,7 @@ export default function ProfilePage() {
     setLoading(true);
     try {
       const token = localStorage.getItem("token");
-      await axios.post("http://localhost:8080/api/auth/change-password", {
+      await axios.post(`${API_BASE_URL}/api/auth/change-password`, {
         oldPassword,
         newPassword
       }, {
