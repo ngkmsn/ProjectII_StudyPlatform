@@ -39,7 +39,7 @@ export default function QuizPage() {
       const response = await axios.get(`${API_BASE_URL}/api/ai/quizzes`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setQuizzes(response.data);
+      setQuizzes(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching quizzes:", error);
     } finally {

@@ -129,9 +129,14 @@ export default function StudySetPage() {
       const response = await axios.get(`${API_BASE_URL}/api/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      const currentDoc = response.data.find((d: any) => d.id.toString() === id);
-      if (currentDoc) setDoc(currentDoc);
-      else router.push("/");
+      if (Array.isArray(response.data)) {
+        const currentDoc = response.data.find((d: any) => d.id.toString() === id);
+        if (currentDoc) setDoc(currentDoc);
+        else router.push("/");
+      } else {
+        console.error("Docs data is not an array:", response.data);
+        router.push("/");
+      }
     } catch (error) {
       console.error("Error fetching doc:", error);
       router.push("/");
@@ -147,11 +152,16 @@ export default function StudySetPage() {
       const response = await axios.get(`${API_BASE_URL}/api/topics/document/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setTopics(response.data);
-      // Auto expand first parent topic
-      const parents = response.data.filter((t: Topic) => !t.parent);
-      if (parents.length > 0) {
-        setExpandedTopics(prev => ({ ...prev, [parents[0].id]: true }));
+      if (Array.isArray(response.data)) {
+        setTopics(response.data);
+        // Auto expand first parent topic
+        const parents = response.data.filter((t: Topic) => !t.parent);
+        if (parents.length > 0) {
+          setExpandedTopics(prev => ({ ...prev, [parents[0].id]: true }));
+        }
+      } else {
+        console.error("Topics data is not an array:", response.data);
+        setTopics([]);
       }
     } catch (error) {
       console.error("Error fetching topics:", error);
@@ -166,7 +176,7 @@ export default function StudySetPage() {
       const quizRes = await axios.get(`${API_BASE_URL}/api/ai/quiz/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      if (quizRes.data && quizRes.data.length > 0) {
+      if (Array.isArray(quizRes.data) && quizRes.data.length > 0) {
         setQuestions(quizRes.data);
         setHasExistingQuiz(true);
         
@@ -186,7 +196,12 @@ export default function StudySetPage() {
       const response = await axios.get(`${API_BASE_URL}/api/chat/document/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setChatMessages(response.data);
+      if (Array.isArray(response.data)) {
+        setChatMessages(response.data);
+      } else {
+        console.error("Chat history data is not an array:", response.data);
+        setChatMessages([]);
+      }
     } catch (error) {
       console.error("Error fetching chat history:", error);
     }

@@ -41,7 +41,7 @@ export default function Dashboard() {
       const response = await axios.get(`${API_BASE_URL}/api/quiz/attempts`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setAttemptsCount(response.data.length);
+      setAttemptsCount(Array.isArray(response.data) ? response.data.length : 0);
     } catch (error) {
       console.error("Error fetching attempts:", error);
     }
@@ -53,7 +53,7 @@ export default function Dashboard() {
       const response = await axios.get(`${API_BASE_URL}/api/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setRecentDocs(response.data.slice(0, 3));
+      setRecentDocs(Array.isArray(response.data) ? response.data.slice(0, 3) : []);
     } catch (error: any) {
       console.error("Error fetching docs:", error);
       if (error.response?.status === 401 || error.response?.status === 403) {

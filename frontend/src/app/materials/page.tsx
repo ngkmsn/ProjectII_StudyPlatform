@@ -39,7 +39,7 @@ export default function MaterialsPage() {
       const response = await axios.get(`${API_BASE_URL}/api/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setDocuments(response.data);
+      setDocuments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching documents:", error);
     } finally {

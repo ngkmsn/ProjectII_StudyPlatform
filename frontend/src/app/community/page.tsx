@@ -35,7 +35,7 @@ export default function CommunityPage() {
       const response = await axios.get(`${API_BASE_URL}/api/files/community`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
-      setDocuments(response.data);
+      setDocuments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching community documents:", error);
     } finally {

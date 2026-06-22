@@ -74,7 +74,7 @@ export default function DailyReviewsPage() {
       const response = await axios.get(`${API_BASE_URL}/api/files`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setDocuments(response.data);
+      setDocuments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error("Error fetching documents:", error);
     } finally {
@@ -89,7 +89,7 @@ export default function DailyReviewsPage() {
       const response = await axios.get(`${API_BASE_URL}/api/reviews/today?documentId=${docId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setReviews(response.data);
+      setReviews(Array.isArray(response.data) ? response.data : []);
       setCurrentIdx(0);
       setCompletedCount(0);
       setIsFlipped(false);

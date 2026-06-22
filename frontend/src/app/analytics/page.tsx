@@ -82,12 +82,12 @@ export default function SmartAnalyticsPage() {
         })
       ]);
 
-      setWeakTopics(weakTopicsRes.data);
-      setAttempts(attemptsRes.data);
-      setReviewStats(statsRes.data);
+      setWeakTopics(Array.isArray(weakTopicsRes.data) ? weakTopicsRes.data : []);
+      setAttempts(Array.isArray(attemptsRes.data) ? attemptsRes.data : []);
+      setReviewStats(Array.isArray(statsRes.data) ? statsRes.data : []);
 
       // Calculate streak based on attempts
-      calculateStreak(attemptsRes.data);
+      calculateStreak(Array.isArray(attemptsRes.data) ? attemptsRes.data : []);
     } catch (error) {
       console.error("Error fetching analytics data:", error);
     } finally {
