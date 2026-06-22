@@ -3,10 +3,12 @@ package com.studyplatform.backend.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "review_items")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class ReviewItem {
 
     @Id

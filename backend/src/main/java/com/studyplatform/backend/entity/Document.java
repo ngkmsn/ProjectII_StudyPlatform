@@ -3,10 +3,12 @@ package com.studyplatform.backend.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "documents")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Document {
 
     @Id

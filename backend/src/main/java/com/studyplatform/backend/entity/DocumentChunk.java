@@ -2,10 +2,12 @@ package com.studyplatform.backend.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "document_chunks")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class DocumentChunk {
 
     @Id

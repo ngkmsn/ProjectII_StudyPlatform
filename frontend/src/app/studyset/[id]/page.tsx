@@ -250,7 +250,7 @@ export default function StudySetPage() {
       const response = await axios.post(`${API_BASE_URL}/api/ai/generate-flashcards/${id}`, payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setFlashcards(response.data);
+      setFlashcards(Array.isArray(response.data) ? response.data : []);
       setCurrentFlashcardIdx(0);
       setIsFlipped(false);
     } catch (error) {
