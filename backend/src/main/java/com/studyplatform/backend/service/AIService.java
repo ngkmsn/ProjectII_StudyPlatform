@@ -78,7 +78,7 @@ public class AIService {
             );
             
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(embedUrl, entity, String.class);
+            ResponseEntity<String> response = postWithRetry(embedUrl, entity);
             
             if (response.getStatusCode() == HttpStatus.OK) {
                 JsonNode root = objectMapper.readTree(response.getBody());
@@ -189,7 +189,7 @@ public class AIService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         String finalUrl = aiApiUrl + "?key=" + aiApiKey;
-        ResponseEntity<String> response = restTemplate.postForEntity(finalUrl, entity, String.class);
+        ResponseEntity<String> response = postWithRetry(finalUrl, entity);
 
         if (response.getStatusCode() == HttpStatus.OK) {
             JsonNode root = objectMapper.readTree(response.getBody());
@@ -230,7 +230,7 @@ public class AIService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         String finalUrl = aiApiUrl + "?key=" + aiApiKey;
-        ResponseEntity<String> response = restTemplate.postForEntity(finalUrl, entity, String.class);
+        ResponseEntity<String> response = postWithRetry(finalUrl, entity);
 
         List<Topic> savedTopics = new ArrayList<>();
         if (response.getStatusCode() == HttpStatus.OK) {
@@ -359,7 +359,7 @@ public class AIService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         String finalUrl = aiApiUrl + "?key=" + aiApiKey;
-        ResponseEntity<String> response = restTemplate.postForEntity(finalUrl, entity, String.class);
+        ResponseEntity<String> response = postWithRetry(finalUrl, entity);
 
         if (response.getStatusCode() == HttpStatus.OK) {
             return parseAndSaveQuestionsWithMetadata(documentId, response.getBody());
@@ -416,7 +416,7 @@ public class AIService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         String finalUrl = aiApiUrl + "?key=" + aiApiKey;
-        ResponseEntity<String> response = restTemplate.postForEntity(finalUrl, entity, String.class);
+        ResponseEntity<String> response = postWithRetry(finalUrl, entity);
 
         if (response.getStatusCode() == HttpStatus.OK) {
             return parseAndSaveQuestionsWithMetadata(documentId, response.getBody());
@@ -536,7 +536,7 @@ public class AIService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
         String finalUrl = aiApiUrl + "?key=" + aiApiKey;
-        ResponseEntity<String> response = restTemplate.postForEntity(finalUrl, entity, String.class);
+        ResponseEntity<String> response = postWithRetry(finalUrl, entity);
 
         if (response.getStatusCode() == HttpStatus.OK) {
             JsonNode root = objectMapper.readTree(response.getBody());
@@ -580,5 +580,29 @@ public class AIService {
         } else {
             throw new RuntimeException("Gemini API failed: " + response.getStatusCode());
         }
+    }
+
+    private ResponseEntity<String> postWithRetry(String url, HttpEntity<?> entity) throws Exception {
+        int maxRetries = 3;
+        int delayMs = 1500;
+        Exception lastException = null;
+
+        for (int i = 0; i < maxRetries; i++) {
+            try {
+                return restTemplate.postForEntity(url, entity, String.class);
+            } catch (org.springframework.web.client.HttpStatusCodeException e) {
+                if (e.getStatusCode() == HttpStatus.SERVICE_UNAVAILABLE) {
+                    lastException = e;
+                    System.out.println("Gemini API returned 503 (Service Unavailable). Retrying in " + delayMs + "ms... (Attempt " + (i + 1) + " of " + maxRetries + ")");
+                    Thread.sleep(delayMs);
+                    delayMs *= 2; // Exponential backoff
+                } else {
+                    throw e;
+                }
+            } catch (Exception e) {
+                throw e;
+            }
+        }
+        throw lastException != null ? lastException : new RuntimeException("Request failed after retries");
     }
 }
