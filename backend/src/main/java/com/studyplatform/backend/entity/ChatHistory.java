@@ -2,6 +2,8 @@ package com.studyplatform.backend.entity;
 
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.time.LocalDateTime;
 
@@ -28,6 +30,7 @@ public class ChatHistory {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String message;
 
+    @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String citations; // JSON string of references/citations
 

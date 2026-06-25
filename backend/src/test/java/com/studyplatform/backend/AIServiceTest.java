@@ -27,7 +27,41 @@ public class AIServiceTest {
     @Autowired
     private DocumentChunkRepository documentChunkRepository;
 
+    @Autowired
+    private com.studyplatform.backend.repository.ChatHistoryRepository chatHistoryRepository;
 
+    @Autowired
+    private com.studyplatform.backend.repository.UserRepository userRepository;
+
+    @Test
+    public void testSaveChatHistoryCitations() {
+        System.out.println("========== TESTING SAVE CHAT HISTORY CITATIONS ==========");
+        com.studyplatform.backend.entity.User user = userRepository.findByEmail("test@example.com").orElse(null);
+        assertNotNull(user, "Test user should exist");
+        
+        List<Document> documents = documentRepository.findAll();
+        if (documents.isEmpty()) {
+            System.out.println("No documents found, skipping saving test.");
+            return;
+        }
+        Document doc = documents.get(0);
+        
+        String citationsJson = "[{\"chunkId\": 1, \"chunkIndex\": 0, \"snippet\": \"Test snippet\", \"pageNumber\": 1}]";
+        com.studyplatform.backend.entity.ChatHistory chatHistory = new com.studyplatform.backend.entity.ChatHistory(
+            user, doc, "AI", "Test message", citationsJson
+        );
+        
+        try {
+            chatHistoryRepository.save(chatHistory);
+            System.out.println("Chat history saved successfully!");
+            // Clean up
+            chatHistoryRepository.delete(chatHistory);
+        } catch (Exception e) {
+            System.err.println("Failed to save chat history with citations:");
+            e.printStackTrace();
+            throw e;
+        }
+    }
 
     @Test
     public void testGeminiEmbeddingWorks() {
