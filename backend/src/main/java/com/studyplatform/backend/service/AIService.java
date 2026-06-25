@@ -579,15 +579,27 @@ public class AIService {
                 targetTopic = topics.get(0);
             }
 
+            List<Flashcard> existing = flashcardRepository.findByDocumentId(documentId);
             for (JsonNode fNode : flashcardsNode) {
-                Flashcard flashcard = new Flashcard(
-                    documentId, 
-                    targetTopic, 
-                    fNode.path("card_type").asText("QA"),
-                    fNode.path("front").asText(), 
-                    fNode.path("back").asText()
+                String front = fNode.path("front").asText().trim();
+                String back = fNode.path("back").asText().trim();
+                String cardType = fNode.path("card_type").asText("QA");
+
+                // Check if this card already exists (case-insensitive)
+                boolean isDuplicate = existing.stream().anyMatch(ex ->
+                    ex.getFrontContent() != null && ex.getFrontContent().trim().equalsIgnoreCase(front)
                 );
-                savedFlashcards.add(flashcardRepository.save(flashcard));
+
+                if (!isDuplicate) {
+                    Flashcard flashcard = new Flashcard(
+                        documentId, 
+                        targetTopic, 
+                        cardType,
+                        front, 
+                        back
+                    );
+                    savedFlashcards.add(flashcardRepository.save(flashcard));
+                }
             }
             return savedFlashcards;
         } else {

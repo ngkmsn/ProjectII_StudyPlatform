@@ -52,12 +52,16 @@ public class ReviewController {
                     }
                 }
                 
-                // Return all review items for this specific document
-                List<ReviewItem> result = reviewItemRepository.findByUserIdAndFlashcardDocumentId(user.getId(), documentId);
+                // Return all review items for this specific document that are due, limited to 20
+                List<ReviewItem> result = reviewItemRepository.findByUserIdAndFlashcardDocumentIdAndDueDateBeforeOrderByDueDateAsc(
+                        user.getId(), documentId, LocalDateTime.now(), org.springframework.data.domain.Limit.of(20)
+                );
                 return ResponseEntity.ok(result);
             } else {
-                // Fallback for all due reviews if no documentId is specified
-                List<ReviewItem> allDue = reviewItemRepository.findByUserIdAndDueDateBefore(user.getId(), LocalDateTime.now());
+                // Fallback for all due reviews if no documentId is specified, limited to 20
+                List<ReviewItem> allDue = reviewItemRepository.findByUserIdAndDueDateBeforeOrderByDueDateAsc(
+                        user.getId(), LocalDateTime.now(), org.springframework.data.domain.Limit.of(20)
+                );
                 return ResponseEntity.ok(allDue);
             }
         } catch (Exception e) {
