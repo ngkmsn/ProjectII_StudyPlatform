@@ -135,6 +135,18 @@ public class AIService {
     }
 
     public Map<String, Object> chatWithDocument(Long documentId, String query) {
+        Document document = documentRepository.findById(documentId).orElse(null);
+        String documentName = document != null ? document.getFileName() : "Tài liệu không xác định";
+
+        List<DocumentChunk> existingChunks = documentChunkRepository.findByDocumentId(documentId);
+        if (existingChunks.isEmpty() && document != null) {
+            try {
+                chunkAndEmbedDocument(document);
+            } catch (Exception e) {
+                System.err.println("On-the-fly chunking and embedding failed: " + e.getMessage());
+            }
+        }
+
         List<Double> queryEmbedding = getEmbedding(query);
         String queryEmbeddingStr = queryEmbedding.toString();
 
@@ -157,12 +169,13 @@ public class AIService {
         }
 
         String prompt = String.format(
-            "Bạn là một trợ lý học tập AI. Bạn có quyền truy cập vào các đoạn nội dung trích xuất từ tài liệu học tập của học viên như sau:\n\n" +
+            "Bạn là một trợ lý học tập AI. Bạn đang hỗ trợ học viên học tập dựa trên tài liệu tên là \"%s\".\n" +
+            "Bạn có quyền truy cập vào các đoạn nội dung trích xuất từ tài liệu này như sau:\n\n" +
             "%s\n\n" +
             "Hãy trả lời câu hỏi của học viên: \"%s\"\n\n" +
-            "Hãy trả lời bằng TIẾNG VIỆT một cách rõ ràng, chi tiết, khoa học, định dạng bằng markdown. " +
-            "Nếu thông tin không có trong phần trích xuất trên, hãy cố gắng trả lời dựa trên kiến thức của bạn một cách tốt nhất, nhưng ghi rõ là thông tin này bổ sung ngoài tài liệu.",
-            context.toString(), query
+            "Hãy trả lời bằng TIẾNG VIỆT một cách rõ ràng, chi tiết, khoa học, định dạng bằng markdown.\n" +
+            "Nếu thông tin không có trong phần trích xuất trên (hoặc phần trích xuất trống), hãy cố gắng trả lời dựa trên kiến thức tốt nhất của bạn về chủ đề \"%s\" liên quan đến câu hỏi, nhưng ghi rõ là thông tin này bổ sung ngoài tài liệu (hoặc do tài liệu không có văn bản trích xuất).",
+            documentName, context.toString(), query, documentName
         );
 
         String answer = "Không thể kết nối với AI vào lúc này.";
